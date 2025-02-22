@@ -1,0 +1,17 @@
+[requires]
+fmt/11.1.3
+libzip/1.11.3
+gtest/1.15.0
+
+[layout]
+cmake_layout
+
+[generators]
+CMakeDeps
+
+[options]
+libzip/*:tools=False
+libzip/*:crypto=False
+libzip/*:with_bzip2=False
+libzip/*:with_lzma=False
+libzip/*:with_zstd=False

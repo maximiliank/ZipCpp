@@ -1,0 +1,33 @@
+{
+    "output.smartScroll.enabled": false,
+    "editor.formatOnSave": true,
+    "cmake.configureOnOpen": true,
+    "cmake.copyCompileCommands": "${workspaceFolder}/out/build/compile_commands.json",
+    "clangd.arguments": [
+        "-log=info",
+        "-pretty",
+        "--background-index",
+        "--compile-commands-dir=${workspaceFolder}/out/build"
+    ],
+    "json.format.keepLines": true,
+    "editor.rulers": [ 120 ],
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "testMate.cpp.debug.configTemplate": {
+        "type": "lldb",
+        "program": "${exec}",
+        "args": "${argsArray}",
+        "cwd": "${cwd}",
+        "env": "${envObj}",
+        "sourceFileMap": "${sourceFileMapObj}",
+        "externalConsole": false
+    },
+    "terminal.integrated.enablePersistentSessions": false,
+    "testMate.cpp.log.logpanel": false,
+    "testMate.cpp.test.advancedExecutables": [
+        {
+            "pattern": "out/build/${command:cmake.activeConfigurePresetName}/test/UnitTests"
+        }
+    ],
+    "git.autorefresh": true,
+    "git.allowNoVerifyCommit": false,
+}
