@@ -29,7 +29,7 @@ namespace ZipCpp {
             return {zip_error_strerror(zip_get_error(archive))};
         }
         template<typename F>
-        auto readFileIntoBuffer(zip_t* archive, const std::string& fileName, F resizeBuffer)
+        auto readFileIntoBuffer(zip_t* archive, const std::string& fileName, const F& resizeBuffer)
         {
             const auto index = locate_name(archive, fileName.c_str(), 0);
 
@@ -166,9 +166,9 @@ ZipCpp::MemoryBuffer ZipCpp::ZipArchive::readFile(const std::string& fileName)
     return MemoryBuffer(std::move(buffer));
 }
 
-void* ZipCpp::ZipArchive::readFile(const std::string& fileName, std::function<void*(std::size_t)> createBuffer)
+void* ZipCpp::ZipArchive::readFile(const std::string& fileName, const std::function<void*(std::size_t)>& createBuffer)
 {
-    return ::ZipCpp::readFileIntoBuffer(zip_, fileName, std::move(createBuffer));
+    return ::ZipCpp::readFileIntoBuffer(zip_, fileName, createBuffer);
 }
 
 ZipCpp::ZipArchive::~ZipArchive()
@@ -234,44 +234,59 @@ std::string_view ZipCpp::ZipArchive::getErrorMessage()
     return ::ZipCpp::getErrorMessage(zip_);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, const std::string& content)
+void ZipCpp::ZipArchive::add(const std::string& name, const std::string& content, const ZipCompression& compression)
 {
     auto* source = createSourceBuffer(content);
-    add(source, name.c_str(), 0);
+    addToZipArchive(source, name.c_str(), 0, compression);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, const ZipCpp::MemoryBuffer& data)
+void ZipCpp::ZipArchive::add(
+        const std::string& name, const ZipCpp::MemoryBuffer& data, const ZipCompression& compression)
 {
     auto* source = createSourceBuffer(data.getData());
-    add(source, name.c_str(), 0);
+    addToZipArchive(source, name.c_str(), 0, compression);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, const char* stream, const std::size_t size)
+void ZipCpp::ZipArchive::add(
+        const std::string& name, const char* stream, const std::size_t size, const ZipCompression& compression)
 {
     auto* source = createSourceBuffer(stream, size);
-    add(source, name.c_str(), 0);
+    addToZipArchive(source, name.c_str(), 0, compression);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, const unsigned char* stream, const std::size_t size)
+void ZipCpp::ZipArchive::add(
+        const std::string& name, const unsigned char* stream, const std::size_t size, const ZipCompression& compression)
 {
     auto* source = createSourceBuffer(stream, size);
-    add(source, name.c_str(), 0);
+    addToZipArchive(source, name.c_str(), 0, compression);
 }
 
-void ZipCpp::ZipArchive::add(zip_source* source, const char* name, const int flags)
+void ZipCpp::ZipArchive::addToZipArchive(
+        zip_source* source, const char* name, const int flags, const ZipCompression& compression)
 {
     auto index = getFileIndex(zip_, name, 0);
     if (index >= 0)
     {
-        index = zip_file_replace(zip_, static_cast<zip_uint64_t>(index), source, static_cast<zip_flags_t>(flags));
+        const int status = zip_delete(zip_, static_cast<zip_uint64_t>(index));
+        if (status < 0)
+        {
+            throw std::runtime_error(
+                    fmt::format("ZipCpp::ZipArchive::add failed to delete file {}: {}", name, getErrorMessage()));
+        }
     }
-    else
-    {
-        index = zip_file_add(zip_, name, source, static_cast<zip_flags_t>(flags));
-    }
+
+    index = zip_file_add(zip_, name, source, static_cast<zip_flags_t>(flags));
     if (index < 0)
     {
         throw std::runtime_error(fmt::format("ZipCpp::ZipArchive::add failed: {}", getErrorMessage()));
+    }
+
+    const auto statusCompression = zip_set_file_compression(
+            zip_, static_cast<zip_uint64_t>(index), compression.toLibzipAlgorithm(), compression.getLevel());
+    if (statusCompression < 0)
+    {
+        throw std::runtime_error(fmt::format(
+                "ZipCpp::ZipArchive::add failed to set compression for file {}: {}", name, getErrorMessage()));
     }
 }
 
@@ -284,26 +299,27 @@ void ZipCpp::ZipArchive::addDirectory(const std::string& name, const int flags)
     }
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, std::string&& content)
+void ZipCpp::ZipArchive::add(const std::string& name, std::string&& content, const ZipCompression& compression)
 {
     const auto& contentVariant = addedFiles_.emplace_back(std::move(content));
     const auto& contentRef = std::get<std::string>(contentVariant);
-    add(name, contentRef);
+    add(name, contentRef, compression);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, MemoryBuffer&& data)
+void ZipCpp::ZipArchive::add(const std::string& name, MemoryBuffer&& data, const ZipCompression& compression)
 {
     const auto& dataVariant = addedFiles_.emplace_back(std::move(data));
     const auto& dataRef = std::get<MemoryBuffer>(dataVariant);
-    add(name, dataRef);
+    add(name, dataRef, compression);
 }
 
-void ZipCpp::ZipArchive::add(const std::string& name, const std::filesystem::path& filePath)
+void ZipCpp::ZipArchive::add(
+        const std::string& name, const std::filesystem::path& filePath, const ZipCompression& compression)
 {
     ZipError error;
     if (auto* src = zip_source_file_create(filePath.c_str(), 0, -1, error()); src != nullptr)
     {
-        add(src, name.c_str(), 0);
+        addToZipArchive(src, name.c_str(), 0, compression);
     }
     else
     {

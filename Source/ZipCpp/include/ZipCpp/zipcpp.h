@@ -7,6 +7,7 @@
 #include <functional>
 #include "memorybuffer.h"
 #include "zipcpp_flags.hpp"
+#include "zipcompression.h"
 
 struct zip;
 struct zip_source;
@@ -38,7 +39,8 @@ namespace ZipCpp {
 
         [[nodiscard]] MemoryBuffer readFile(const std::string& fileName);
 
-        [[nodiscard]] void* readFile(const std::string& fileName, std::function<void*(std::size_t)> createBuffer);
+        [[nodiscard]] void* readFile(
+                const std::string& fileName, const std::function<void*(std::size_t)>& createBuffer);
 
         template<typename F>
         auto load(const char* zipFilename, F func) -> std::invoke_result_t<F, std::istream&>
@@ -48,19 +50,20 @@ namespace ZipCpp {
             return func(stream);
         }
 
-        void add(const std::string& name, const std::filesystem::path& filePath);
+        void add(const std::string& name, const std::filesystem::path& filePath, const ZipCompression& compression);
 
-        void add(const std::string& name, const std::string& content);
+        void add(const std::string& name, const std::string& content, const ZipCompression& compression);
 
-        void add(const std::string& name, std::string&& content);
+        void add(const std::string& name, std::string&& content, const ZipCompression& compression);
 
-        void add(const std::string& name, const MemoryBuffer& data);
+        void add(const std::string& name, const MemoryBuffer& data, const ZipCompression& compression);
 
-        void add(const std::string& name, MemoryBuffer&& data);
+        void add(const std::string& name, MemoryBuffer&& data, const ZipCompression& compression);
 
-        void add(const std::string& name, const char* stream, std::size_t size);
+        void add(const std::string& name, const char* stream, std::size_t size, const ZipCompression& compression);
 
-        void add(const std::string& name, const unsigned char* stream, std::size_t size);
+        void add(const std::string& name, const unsigned char* stream, std::size_t size,
+                const ZipCompression& compression);
 
         void addDirectory(const std::string& name, int flags = 0);
 
@@ -71,7 +74,7 @@ namespace ZipCpp {
       private:
         std::string_view getErrorMessage();
 
-        void add(zip_source* source, const char* fileName, int flags);
+        void addToZipArchive(zip_source* source, const char* fileName, int flags, const ZipCompression& compression);
 
         void close();
 
