@@ -6,9 +6,19 @@ ZipCpp::MemoryBuffer::MemoryBuffer(MemoryBuffer::Data_t&& data)
     : data_(std::move(data)), characterView_(reinterpret_cast<char*>(data_.data()), data_.size())
 {}
 
+ZipCpp::MemoryBuffer::MemoryBuffer(const MemoryBuffer& other)
+    : data_(other.data_), characterView_(reinterpret_cast<char*>(data_.data()), data_.size())
+{}
+
+ZipCpp::MemoryBuffer::MemoryBuffer(MemoryBuffer&& other) noexcept
+    : data_(std::move(other.data_)), characterView_(reinterpret_cast<char*>(data_.data()), data_.size())
+{}
+
+ZipCpp::MemoryBuffer::~MemoryBuffer() = default;
+
 ZipCpp::MemoryStream ZipCpp::MemoryBuffer::getMemoryStream() const
 {
-    return {characterView_};
+    return MemoryStream{characterView_};
 }
 ZipCpp::MemoryBuffer::Data_t& ZipCpp::MemoryBuffer::getData()
 {

@@ -7,9 +7,13 @@ ZipCpp::membuf::membuf(const std::string_view characterView) : characterView_(ch
 }
 ZipCpp::membuf::membuf(ZipCpp::membuf&& other) noexcept : membuf(other.characterView_) {}
 
+ZipCpp::membuf::~membuf() = default;
+
 ZipCpp::MemoryStream::MemoryStream(const std::string_view characterView)
     : membuf(characterView), std::istream(static_cast<std::streambuf*>(this))
 {}
+
+ZipCpp::MemoryStream::~MemoryStream() = default;
 
 ZipCpp::MemoryStream::MemoryStream(ZipCpp::MemoryStream&& other) noexcept
     : membuf(std::move(other)), std::istream(static_cast<std::streambuf*>(this))

@@ -14,6 +14,16 @@ namespace ZipCpp {
 
         explicit MemoryBuffer(Data_t&& data);
 
+        MemoryBuffer(const MemoryBuffer& other);
+
+        MemoryBuffer& operator=(const MemoryBuffer& other) = delete;
+
+        MemoryBuffer(MemoryBuffer&& other) noexcept;
+
+        MemoryBuffer& operator=(MemoryBuffer&& other) = delete;
+
+        ~MemoryBuffer();
+
         [[nodiscard]] MemoryStream getMemoryStream() const;
 
         [[nodiscard]] Data_t& getData();

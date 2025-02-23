@@ -7,30 +7,34 @@
 namespace ZipCpp {
     // See https://stackoverflow.com/questions/13059091/creating-an-input-stream-from-constant-memory/13059195#13059195
     struct membuf : std::streambuf {
-        membuf(std::string_view characterView);
+        explicit membuf(std::string_view characterView);
 
         membuf(const membuf&) = delete;
 
         membuf(membuf&& other) noexcept;
 
-        membuf operator=(const membuf&) = delete;
+        membuf& operator=(const membuf&) = delete;
 
-        membuf operator=(membuf&&) = delete;
+        membuf& operator=(membuf&&) noexcept = delete;
+
+        ~membuf() override;
 
       private:
         std::string_view characterView_;
     };
 
     struct MemoryStream : virtual membuf, std::istream {
-        MemoryStream(std::string_view characterView);
+        explicit MemoryStream(std::string_view characterView);
 
         MemoryStream(const MemoryStream&) = delete;
 
         MemoryStream(MemoryStream&& other) noexcept;
 
-        MemoryStream operator=(const MemoryStream&) = delete;
+        MemoryStream& operator=(const MemoryStream&) = delete;
 
-        MemoryStream operator=(MemoryStream&&) = delete;
+        MemoryStream& operator=(MemoryStream&&) noexcept = delete;
+
+        ~MemoryStream() override;
 
       protected:
         std::iostream::pos_type seekpos(std::iostream::pos_type sp, std::ios_base::openmode which) override;
