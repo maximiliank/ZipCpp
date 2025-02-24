@@ -206,7 +206,10 @@ void ZipCpp::ZipArchive::close()
         }
         else
         {
-            zip_close(zip_);
+            if (zip_close(zip_) != 0)
+            {
+                throw std::runtime_error(fmt::format("ZipArchive::close failed: {}", getErrorMessage()));
+            }
         }
     }
 }
