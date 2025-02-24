@@ -317,7 +317,7 @@ void ZipCpp::ZipArchive::add(
         const std::string& name, const std::filesystem::path& filePath, const ZipCompression& compression)
 {
     ZipError error;
-    if (auto* src = zip_source_file_create(filePath.c_str(), 0, -1, error()); src != nullptr)
+    if (auto* src = zip_source_file_create(filePath.string().c_str(), 0, -1, error()); src != nullptr)
     {
         addToZipArchive(src, name.c_str(), 0, compression);
     }
