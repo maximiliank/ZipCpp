@@ -18,11 +18,11 @@ namespace ZipCpp {
 
         LibZipOpen zipFlags_;
 
-        struct zip* zip_ = nullptr;
+        zip* zip_ = nullptr;
 
         std::deque<DataStorage_t> addedFiles_;
 
-        explicit ZipArchive(zip_source* src, LibZipOpen flags);
+        explicit ZipArchive(zip* za, LibZipOpen flags);
 
       public:
         static ZipArchive open(const std::string& archiveName, LibZipOpen flags);
@@ -71,12 +71,12 @@ namespace ZipCpp {
 
         [[nodiscard]] LibZipOpen getCurrentFlags() const;
 
+        void writeAndClose();
+
       private:
         std::string_view getErrorMessage();
 
         void addToZipArchive(zip_source* source, const char* fileName, int flags, const ZipCompression& compression);
-
-        void close();
 
         [[nodiscard]] bool isReadOnly() const;
     };

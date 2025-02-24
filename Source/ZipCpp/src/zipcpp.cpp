@@ -1,6 +1,7 @@
 #include "ZipCpp/zipcpp.h"
 
 #include <stdexcept>
+#include "ZipCpp/zipcpp_flags.hpp"
 #include "zip.h"
 #include <fmt/format.h>
 #include <string_view>
@@ -102,7 +103,32 @@ namespace ZipCpp {
             }
         };
 
-        zip_source_t* createSourceBuffer(const void* stream, const std::size_t size)
+        [[nodiscard]] int checkFlags(const LibZipOpen flags)
+        {
+            const auto flagsInt = to_integer(flags);
+            if (!is_valid_flag(flagsInt))
+            {
+                throw std::runtime_error(fmt::format("Unsupported flag for zip_open {}", flags));
+            }
+            return flagsInt;
+        }
+
+        [[nodiscard]] zip_source_t* createSourceFromFile(const std::string& archiveName)
+        {
+            ZipError error;
+
+            if (auto* src = zip_source_file_create(archiveName.c_str(), 0, -1, error()); src != nullptr)
+            {
+                return src;
+            }
+            else
+            {
+                throw std::runtime_error(
+                        fmt::format("ZipCpp::load: Error during zip_source_file_create call: {}", error.get()));
+            }
+        }
+
+        [[nodiscard]] zip_source_t* createSourceBuffer(const void* stream, const std::size_t size)
         {
             ZipError error;
             if (auto* src = zip_source_buffer_create(stream, size, 0, error()); src != nullptr)
@@ -118,12 +144,27 @@ namespace ZipCpp {
             }
         }
 
-        zip_source_t* createSourceBuffer(const std::string& content)
+        [[nodiscard]] zip* openFromSource(zip_source_t* src, const int flags)
+        {
+            ZipError error;
+            if (auto* za = zip_open_from_source(src, flags, error()); za != nullptr)
+            {
+                return za;
+            }
+            else
+            {
+                zip_source_free(src);
+                throw std::runtime_error(
+                        fmt::format("ZipArchive::ZipArchive zip_open_from_source failed: {}", error.get()));
+            }
+        }
+
+        [[nodiscard]] zip_source_t* createSourceBuffer(const std::string& content)
         {
             return createSourceBuffer(content.c_str(), content.size());
         }
 
-        zip_source_t* createSourceBuffer(const MemoryBuffer::Data_t& data)
+        [[nodiscard]] zip_source_t* createSourceBuffer(const MemoryBuffer::Data_t& data)
         {
             return createSourceBuffer(data.data(), data.size());
         }
@@ -131,25 +172,7 @@ namespace ZipCpp {
 }
 
 
-ZipCpp::ZipArchive::ZipArchive(zip_source* src, LibZipOpen flags)
-    : zipFlags_(flags), zip_([src, flags = to_integer(flags)]() {
-          if (!is_valid_flag(flags))
-          {
-              throw std::runtime_error(fmt::format("Unsupported flag for zip_open {}", flags));
-          }
-          ZipError error;
-          if (auto* za = zip_open_from_source(src, flags, error()); za != nullptr)
-          {
-              return za;
-          }
-          else
-          {
-              zip_source_free(src);
-              throw std::runtime_error(
-                      fmt::format("ZipArchive::ZipArchive zip_open_from_source failed: {}", error.get()));
-          }
-      }())
-{}
+ZipCpp::ZipArchive::ZipArchive(zip* za, LibZipOpen flags) : zipFlags_(flags), zip_(za) {}
 bool ZipCpp::ZipArchive::isReadOnly() const
 {
     return has_flag(zipFlags_, LibZipOpen::RDONLY);
@@ -173,7 +196,7 @@ void* ZipCpp::ZipArchive::readFile(const std::string& fileName, const std::funct
 
 ZipCpp::ZipArchive::~ZipArchive()
 {
-    close();
+    zip_discard(zip_);
 }
 ZipCpp::ZipArchive::ZipArchive(ZipArchive&& other) noexcept
     : zipFlags_(other.zipFlags_), zip_(other.zip_), addedFiles_(std::move(other.addedFiles_))
@@ -185,7 +208,7 @@ ZipCpp::ZipArchive& ZipCpp::ZipArchive::operator=(ZipArchive&& other) noexcept
 {
     if (this != &other)
     {
-        close();
+        zip_discard(zip_);
 
         zipFlags_ = other.zipFlags_;
         zip_ = other.zip_;
@@ -196,7 +219,7 @@ ZipCpp::ZipArchive& ZipCpp::ZipArchive::operator=(ZipArchive&& other) noexcept
     return *this;
 }
 
-void ZipCpp::ZipArchive::close()
+void ZipCpp::ZipArchive::writeAndClose()
 {
     if (zip_ != nullptr)
     {
@@ -204,32 +227,29 @@ void ZipCpp::ZipArchive::close()
         {
             zip_discard(zip_);
         }
-        else
+        if (zip_close(zip_) != 0)
         {
-            if (zip_close(zip_) != 0)
-            {
-                throw std::runtime_error(fmt::format("ZipArchive::close failed: {}", getErrorMessage()));
-            }
+            throw std::runtime_error(fmt::format("ZipArchive::close failed: {}", getErrorMessage()));
         }
+        zip_ = nullptr;
     }
 }
+
 ZipCpp::ZipArchive ZipCpp::ZipArchive::open(const std::string& archiveName, const LibZipOpen flags)
 {
-    ZipError error;
-    if (auto* src = zip_source_file_create(archiveName.c_str(), 0, -1, error()); src != nullptr)
-    {
-        return ZipCpp::ZipArchive(src, flags);
-    }
-    else
-    {
-        throw std::runtime_error(
-                fmt::format("ZipCpp::load: Error during zip_source_file_create call: {}", error.get()));
-    }
+    const auto flagsInt = checkFlags(flags);
+
+    auto* src = createSourceFromFile(archiveName);
+    auto* za = openFromSource(src, flagsInt);
+    return ZipCpp::ZipArchive(za, flags);
 }
 
 ZipCpp::ZipArchive ZipCpp::ZipArchive::open(const void* stream, const std::size_t size, const LibZipOpen flags)
 {
-    return ZipCpp::ZipArchive(createSourceBuffer(stream, size), flags);
+    const auto flagsInt = checkFlags(flags);
+    auto* src = createSourceBuffer(stream, size);
+    auto* za = openFromSource(src, flagsInt);
+    return ZipCpp::ZipArchive(za, flags);
 }
 
 std::string_view ZipCpp::ZipArchive::getErrorMessage()

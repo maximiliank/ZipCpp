@@ -15,6 +15,7 @@ namespace {
             auto za = ZipArchive::open("test_write1.zip", LibZipOpen::CREATE | LibZipOpen::TRUNCATE);
             za.add("dir/test.txt", content, compression);
             za.addDirectory("dirB");
+            za.writeAndClose();
         }
     }
 
@@ -25,6 +26,7 @@ namespace {
         {
             std::string content{"This is a test"};
             za.add("test.txt", std::move(content), compression);
+            za.writeAndClose();
         }
     }
 
@@ -35,6 +37,7 @@ namespace {
             using namespace ZipCpp;
             auto za = ZipArchive::open("test_writeStream1.zip", LibZipOpen::CREATE | LibZipOpen::TRUNCATE);
             za.add("dir/test.txt", data, compression);
+            za.writeAndClose();
         }
     }
 
@@ -44,6 +47,7 @@ namespace {
         auto za = ZipArchive::open("test_writeStream2.zip", LibZipOpen::CREATE | LibZipOpen::TRUNCATE);
         auto data = Tests::readFile(TestData::getFilePath("CMakeLists.txt"));
         za.add("dir/test.txt", std::move(data), compression);
+        za.writeAndClose();
     }
 
     TEST(ZipCpp, writeFile1)
@@ -51,5 +55,6 @@ namespace {
         using namespace ZipCpp;
         auto za = ZipArchive::open("test_writeFile1.zip", LibZipOpen::CREATE | LibZipOpen::TRUNCATE);
         za.add("dir/test.txt", std::filesystem::path(TestData::getFilePath("CMakeLists.txt")), compression);
+        za.writeAndClose();
     }
 }
