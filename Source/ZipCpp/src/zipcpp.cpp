@@ -227,7 +227,7 @@ void ZipCpp::ZipArchive::writeAndClose()
         {
             zip_discard(zip_);
         }
-        if (zip_close(zip_) != 0)
+        else if (zip_close(zip_) != 0)
         {
             throw std::runtime_error(fmt::format("ZipArchive::close failed: {}", getErrorMessage()));
         }
