@@ -362,32 +362,11 @@ ZipCpp::LibZipOpen ZipCpp::ZipArchive::getCurrentFlags() const
     return zipFlags_;
 }
 
-bool ZipCpp::ZipArchive::isDirectory(const std::string& name)
-{
-    auto index = zip_name_locate(zip_, name.c_str(), 0);
-    if (index < 0)
-    {
-        throw std::runtime_error(fmt::format("ZipCpp::ZipArchive::isDirectory: File {} not found in archive", name));
-    }
-
-    zip_stat_t zst;
-    if (zip_stat_index(zip_, static_cast<zip_uint64_t>(index), 0, &zst) != ZIP_ER_OK)
-    {
-        throw std::runtime_error(fmt::format("ZipCpp::ZipArchive::isDirectory: {}", getErrorMessage()));
-    }
-
-    return (zst.valid & ZIP_STAT_NAME) && (zst.name[strlen(zst.name) - 1] == '/');
-}
-
 std::vector<std::string> ZipCpp::ZipArchive::locateFilesInDirectory(std::string directoryName)
 {
     if (!directoryName.empty() && directoryName.back() != '/')
     {
         directoryName += '/';
-    }
-    if (!isDirectory(directoryName))
-    {
-        throw std::runtime_error(fmt::format("{} is not a directory", directoryName));
     }
 
     std::vector<std::string> files;

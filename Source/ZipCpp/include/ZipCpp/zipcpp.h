@@ -73,8 +73,6 @@ namespace ZipCpp {
 
         void writeAndClose();
 
-        [[nodiscard]] bool isDirectory(const std::string& name);
-
         [[nodiscard]] std::vector<std::string> locateFilesInDirectory(std::string directoryName);
 
       private:
